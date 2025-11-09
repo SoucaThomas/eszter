@@ -1,4 +1,7 @@
+
+
 %include 'mio.inc'
+%include 'io.inc'
 
 section .data
 dec_prompt db "Adj meg egy elojeles decimalis szamot: ",0
@@ -19,102 +22,96 @@ section .text
 global main
 
 main:
-    push esi
-    push ebx
-
-    mov esi,dec_prompt
-    call mio_writestr
-    call readDec
-    mov [num1],eax
-
-    mov esi,dec_out
-    call mio_writestr
-    mov eax,[num1]
-    call writeDec
-    call mio_writeln
-
-    mov esi,hex_out
-    call mio_writestr
-    mov eax,[num1]
-    call writeHex
-    call mio_writeln
-
-    mov esi,hex_prompt
-    call mio_writestr
     call readHex
-    mov [num2],eax
 
-    mov esi,dec_out
-    call mio_writestr
-    mov eax,[num2]
+    call io_writeln
     call writeDec
-    call mio_writeln
-
-    mov esi,hex_out
-    call mio_writestr
-    mov eax,[num2]
-    call writeHex
-    call mio_writeln
-
-    mov eax,[num1]
-    add eax,[num2]
-    mov [sum],eax
-
-    mov esi,sum_out
-    call mio_writestr
-    mov eax,[sum]
-    call writeDec
-    call mio_writeln
-
-    mov esi,hex_out
-    call mio_writestr
-    mov eax,[sum]
-    call writeHex
-    call mio_writeln
-
-    pop ebx
-    pop esi
-    ret
+ret
 
 readDec:
-    xor eax,eax
-    mov esi,1
+    ;xor eax,eax
+
+    ; we dont want to destroy the values in the registers so we push them to the stack
+    push ebx
+    push esi
+
+    ;initialize the registers
+    mov esi,1 ; will show us if the num is negative or not
+    mov eax, 0; here we read the digits one by one
+    mov ebx, 0; here we calculate the digits -> ebx = ebx * 10 + eax(we just read a new digit)
+
     call mio_readchar
+
+    call mio_writechar ; -> when we type in the terminal we want the char to apear so we see what we wrote
+
     cmp al,'-'
     jne .loop_start
+    
     mov esi,-1
     call mio_readchar
+    call mio_writechar ; same as the call above
+
 .loop_start:
     cmp al,13
     je .done_zero
 .loop:
     cmp al,13
     je .done
+    
     cmp al,'0'
     jb .error_dec
+    
     cmp al,'9'
     ja .error_dec
+
     sub al,'0'           
-    mov ebx,eax          
-    shl eax,3
-    shl ebx,1
-    add eax,ebx           
-    add eax,edx           
-    mov edx,0
-    mov dl,al
+    ;mov ebx,eax ; -> we dont need this 
+    ;shl eax,3
+    ;shl ebx,1
+    ;add eax,ebx           
+    ;add eax,edx           
+    ;mov edx,0
+    ;mov dl,al
+
+    imul ebx, 10
+    add ebx, eax
+    
     call mio_readchar
-    jmp .loop
+    call mio_writechar ; same as at the start
+    
+jmp .loop
+
 .done:
-    imul eax,esi
+    ;imul eax,esi
+    mov eax, ebx
+
+    ; if we had '-' char at the start we will have -1 in esi else 1
+    imul eax, esi
+    
+    pop esi
+    pop ebx
+    
     ret
+
 .done_zero:
-    xor eax,eax
-    ret
+    mov eax, 0
+
+    pop esi
+    pop ebx
+    
+ret
 .error_dec:
-    mov esi,hiba_dec
+    mov eax,hiba_dec ; when calling mio_writestr it expects the code to be in eax not esi
+    call mio_writeln
     call mio_writestr
     call mio_writeln
-    jmp readDec
+
+    mov eax, 0 ; we should handle the error in main
+    pop esi
+    pop ebx
+
+    ;jmp readDec ; if error exit
+ret
 
 writeDec:
     push eax
@@ -123,9 +120,12 @@ writeDec:
     push edx
 
     cmp eax,0
-    jns .pos
+    jge .pos    ; use jge instead of jns
+    
+    push eax    ; moving '-' into the lower part of eax will destroy eax, so we push it to the stack first
     mov al,'-'
     call mio_writechar
+    pop eax
     neg eax
 
 .pos:
