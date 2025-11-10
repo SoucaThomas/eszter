@@ -1,7 +1,4 @@
-
-
 %include 'mio.inc'
-%include 'io.inc'
 
 section .data
 dec_prompt db "Adj meg egy elojeles decimalis szamot: ",0
@@ -21,12 +18,47 @@ sum  resd 1
 section .text
 global main
 
-main:
-    call readHex
 
-    call io_writeln
+main:
+
+    mov eax,dec_prompt
+    call mio_writestr
+    call readDec
+    mov [num1],eax
+    call mio_writeln
+
     call writeDec
-ret
+    call mio_writeln
+
+    call writeHex
+    call mio_writeln
+
+    ;2. szam
+    mov eax,hex_prompt
+    call mio_writestr
+    call readDec
+    mov [num2],eax
+    call mio_writeln
+
+    call writeDec
+    call mio_writeln
+
+    call writeHex
+    call mio_writeln
+
+    mov eax,[num1]
+    mov ebx,[num2]
+    add eax,ebx
+    call mio_writeln
+
+    call writeDec
+    call mio_writeln
+
+    call writeHex
+    call mio_writeln
+
+
+    ret
 
 readDec:
     ;xor eax,eax
@@ -65,13 +97,7 @@ readDec:
     ja .error_dec
 
     sub al,'0'           
-    ;mov ebx,eax ; -> we dont need this 
-    ;shl eax,3
-    ;shl ebx,1
-    ;add eax,ebx           
-    ;add eax,edx           
-    ;mov edx,0
-    ;mov dl,al
+    
 
     imul ebx, 10
     add ebx, eax
@@ -82,7 +108,6 @@ readDec:
 jmp .loop
 
 .done:
-    ;imul eax,esi
     mov eax, ebx
 
     ; if we had '-' char at the start we will have -1 in esi else 1
@@ -158,87 +183,120 @@ writeDec:
 
 
 readHex:
-    xor eax,eax
-.loop:
-    call mio_readchar
-    cmp al,13
-    je .done_hex
+    push esi
+    push ebx
+    push ecx
+    push edx
 
-    cmp al,'0'
-    jb .error_hex
-    cmp al,'9'
-    jbe .digit
-    cmp al,'A'
-    jb .lower
-    cmp al,'F'
-    jbe .upper
-    cmp al,'a'
-    jb .error_hex
-    cmp al,'f'
-    ja .error_hex
-
-.lower:
-    sub al,'a'
-    add al,10
-    jmp .add_value
-.upper:
-    sub al,'A'
-    add al,10
-    jmp .add_value
-.digit:
-    sub al,'0'
-
-.add_value:
-    shl eax,4          
+    mov eax,0
+    mov ecx,1
     mov edx,0
-    mov dl,al          
-    add eax,edx
-    jmp .loop
 
-.done_hex:
+ .next:
+    call mio_readchar
+    call mio_writechar
+    cmp eax,13
+    je .vege
+    cmp eax,'-'
+    je .negativ
+    cmp eax,'0'
+    jl .error
+    cmp eax,'9'
+    jle .decimal
+    cmp eax,'A'
+    jl .error
+    cmp eax,'F'
+    jle .hexa
+    cmp eax,'a'
+    jl .error
+    cmp eax,'f'
+    jle .convert
+
+    jmp .next
+
+ .negativ:
+    mov ecx,-1
+    jmp .next
+
+    
+ .convert:
+    sub eax,32
+    jmp .hexa
+
+
+ .hexa:
+    sub eax,'A'
+    add eax,10
+    imul ebx,0x10
+    add ebx,eax
+    jmp .next
+
+ .decimal:
+    add ebx,eax
+    imul ebx,0x10
+    jmp .next
+
+ .vege:
+    mov eax,ebx
+    imul eax,ecx
+    pop ebx
+    pop ecx
+    pop edx
+    pop esi
     ret
-
-.error_hex:
-    mov esi,hiba_hex
+ .error:
+    mov eax,hiba_hex
     call mio_writestr
-    call mio_writeln
-    jmp readHex
-
+    ret
 
 
 writeHex:
-    push eax
     push ebx
     push ecx
     push edx
     push esi
 
-    mov esi, hexa_prefix
+    mov ebx,eax
+    mov eax,hexa_prefix
     call mio_writestr
 
-    mov ecx, 8
-    mov ebx, eax
+    mov ecx,8
 
-.hex_loop:
-    mov eax, ebx
-    shr eax, 28         
-    mov edx, eax         
-    cmp dl, 10
-    jb .digit
-    add dl, 'A'-10
-    jmp .write_char
-.digit:
-    add dl, '0'
-.write_char:
-    mov al, dl
+
+ .loop:
+    mov esi,ebx
+    shr esi,28
+    cmp esi,9
+    jle .szamjegy
+    jmp .hexa
+    
+ .hexa:
+    add esi,'A'
+    sub esi,10
+    jmp .kiir
+
+
+ .szamjegy:
+    add esi,'0'
+    mov eax,esi
+    jmp .kiir
+
+ .kiir:
     call mio_writechar
-    shl ebx, 4           
-    dec ecx
-    jnz .hex_loop
 
-    pop esi
-    pop edx
-    pop ecx
+    shl ebx, 4
+
+loop .loop
+
     pop ebx
-    pop eax
+    pop ecx
+    pop edx
+    pop esi
+
     ret
+    
+    
+ 
+
+
+
