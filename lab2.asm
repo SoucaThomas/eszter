@@ -27,22 +27,26 @@ main:
     mov [num1],eax
     call mio_writeln
 
+    mov eax,[num1]
     call writeDec
     call mio_writeln
 
+    mov eax,[num1]
     call writeHex
     call mio_writeln
 
     ;2. szam
     mov eax,hex_prompt
     call mio_writestr
-    call readDec
+    call readHex
     mov [num2],eax
     call mio_writeln
 
+    mov eax,[num2]
     call writeDec
     call mio_writeln
 
+    mov eax,[num2]
     call writeHex
     call mio_writeln
 
@@ -66,11 +70,13 @@ readDec:
     ; we dont want to destroy the values in the registers so we push them to the stack
     push ebx
     push esi
+    push edx
 
     ;initialize the registers
     mov esi,1 ; will show us if the num is negative or not
     mov eax, 0; here we read the digits one by one
     mov ebx, 0; here we calculate the digits -> ebx = ebx * 10 + eax(we just read a new digit)
+    mov edx, 0 ; flag: 0 = no digits read yet, 1 = at least one digit read
 
     call mio_readchar
 
@@ -113,6 +119,7 @@ jmp .loop
     ; if we had '-' char at the start we will have -1 in esi else 1
     imul eax, esi
     
+    pop edx
     pop esi
     pop ebx
     
@@ -126,17 +133,17 @@ jmp .loop
     
 ret
 .error_dec:
-    mov eax,hiba_dec ; when calling mio_writestr it expects the code to be in eax not esi
     call mio_writeln
+    mov eax,hiba_dec ; when calling mio_writestr it expects the code to be in eax not esi
     call mio_writestr
     call mio_writeln
 
     mov eax, 0 ; we should handle the error in main
+    pop edx
     pop esi
     pop ebx
 
-    ;jmp readDec ; if error exit
-ret
+    ret
 
 writeDec:
     push eax
@@ -189,6 +196,7 @@ readHex:
     push edx
 
     mov eax,0
+    mov ebx,0
     mov ecx,1
     mov edx,0
 
@@ -212,7 +220,7 @@ readHex:
     cmp eax,'f'
     jle .convert
 
-    jmp .next
+    jmp .error
 
  .negativ:
     mov ecx,-1
@@ -232,21 +240,29 @@ readHex:
     jmp .next
 
  .decimal:
-    add ebx,eax
+    sub eax,'0'
     imul ebx,0x10
+    add ebx,eax
     jmp .next
 
  .vege:
     mov eax,ebx
     imul eax,ecx
-    pop ebx
-    pop ecx
     pop edx
+    pop ecx
+    pop ebx
     pop esi
     ret
  .error:
+    call mio_writeln
     mov eax,hiba_hex
     call mio_writestr
+    call mio_writeln
+    mov eax, 0
+    pop edx
+    pop ecx
+    pop ebx
+    pop esi
     ret
 
 
@@ -273,27 +289,30 @@ writeHex:
  .hexa:
     add esi,'A'
     sub esi,10
+    push eax
+    mov eax,esi
     jmp .kiir
 
 
  .szamjegy:
     add esi,'0'
+    push eax
     mov eax,esi
     jmp .kiir
 
  .kiir:
     call mio_writechar
-
+    pop eax
     shl ebx, 4
 
-loop .loop
+    loop .loop
 
-    pop ebx
-    pop ecx
-    pop edx
     pop esi
+    pop edx
+    pop ecx
+    pop ebx
 
-    ret
+ret
     
     
  
